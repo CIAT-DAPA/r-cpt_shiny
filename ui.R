@@ -7,7 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 library(pacman)
-pacman::p_load(tidyverse,shinyhttr,stringr,R.utils, shiny, shinyFiles, shinyWidgets, shinydashboard, shinyBS, leaflet, leaflet.extras)
+pacman::p_load(tidyverse,shinyhttr,sf,stringr,R.utils, shiny, shinyFiles, shinyWidgets, shinydashboard, shinyBS, leaflet, leaflet.extras)
 
 ####### Functions #######
 
@@ -157,11 +157,11 @@ body <- dashboardBody(
                            numericInput(inputId = "lon1_1", label = "x1", value = 0),
                            numericInput(inputId = "lon2_1", label = "x2", value = 360),
                            numericInput(inputId = "lat1_1", label = "y1", value = -45),
-                           numericInput(inputId = "lat2_1", label = "y2", value = 45),
-                           materialSwitch(inputId = "usemap1",label = "Usar mapa",value = FALSE,status = "primary")
+                           numericInput(inputId = "lat2_1", label = "y2", value = 45)
+                           #materialSwitch(inputId = "usemap1",label = "Usar mapa",value = FALSE,status = "primary")
                ),
                conditionalPanel("input.Check1 == '2'",
-                                materialSwitch(inputId = "usemap2",label = "Usar herramienta de dibujo",value = FALSE,status = "primary") ,
+                                #materialSwitch(inputId = "usemap2",label = "Usar herramienta de dibujo",value = FALSE,status = "primary") ,
                                 splitLayout(cellWidths = c("17%","17%", "17%" , "17%" , "32%"),
                                   numericInput(inputId = "lon1_2", label = "x1", value = NULL),
                                   numericInput(inputId = "lon2_2", label = "x2", value = NULL),
@@ -224,7 +224,7 @@ body <- dashboardBody(
                                         #tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
                                            
                                     
-                                        leafletOutput("map1",height = "900",width="1026")
+                                        leafletOutput("map1",height = "897",width="1026")
                                                  )
                                         ),
                       tabPanel(title = "Resultados")

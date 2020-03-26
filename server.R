@@ -6,7 +6,7 @@
 # 
 #    http://shiny.rstudio.com/
 #
-pacman::p_load(tidyverse,shinyhttr,stringr,R.utils , leaflet, leaflet.extras)
+pacman::p_load(tidyverse,shinyhttr,sf,stringr,R.utils , leaflet, leaflet.extras)
 
 options(shiny.maxRequestSize=30*1024^2) 
 options(timeout=180)
@@ -64,6 +64,9 @@ withBusyIndicatorServer <- function(buttonId, expr) {
 }
 
 download_CFSV2_CPT_1=function(firs_year,last_year,i_month,ic,dir_save,area1, lg){
+  
+  options(timeout=180)
+  
   lg_s <- lg -1
   lead <- i_month-ic
   if(lead<0)lead <- lead + 12
@@ -79,6 +82,8 @@ download_CFSV2_CPT_1=function(firs_year,last_year,i_month,ic,dir_save,area1, lg)
 }
 
 download_CFSV2_CPT_2=function(firs_year,last_year,i_month,ic,dir_save,area1,lg,area2){
+  
+  options(timeout=180)
   
   lg_s <-lg-1
   lead <- i_month-ic
@@ -233,11 +238,12 @@ shinyServer(function(input, output, session) {
   ##3 leaflet map
   
   output$map1 <- renderLeaflet({
-    
+  
     react_map()
   })
   
-  
+ 
+    
   shinyjs::onclick("lon1_1",expr = {
     updateNavbarPage(session, "nvpg1",selected = "Selector de área")
   })
@@ -251,8 +257,9 @@ shinyServer(function(input, output, session) {
     updateNavbarPage(session, "nvpg1",selected = "Selector de área")
   })
   
-observeEvent(c(input$lon1_1, input$lon2_1,input$lat1_1, input$lat2_1),{
-
+observeEvent(c(input$Check1,input$lon1_1, input$lon2_1,input$lat1_1, input$lat2_1,input$lon1_2, input$lon2_2,input$lat1_2, input$lat2_2),{
+  
+  if(input$Check1=="1"){ 
   req(input$lon1_1, input$lon2_1,input$lat1_1, input$lat2_1) 
   
   paths$lon1 <- input$lon1_1
@@ -264,35 +271,77 @@ observeEvent(c(input$lon1_1, input$lon2_1,input$lat1_1, input$lat2_1),{
   leafletProxy("map1") %>% 
   clearShapes()  %>%
   addRectangles(layerId = "init",lng1 = paths$lon1, lng2 =  paths$lon2, lat1= paths$lat1, lat2 = paths$lat2 )
-
+  
+  }else{
+    
+    req(input$lon1_2, input$lon2_2,input$lat1_2, input$lat2_2) 
+    
+    paths$lon1_2 <- input$lon1_2
+    paths$lon2_2 <- input$lon2_2
+    paths$lat1_2 <- input$lat1_2
+    paths$lat2_2 <- input$lat2_2
+    
+    react_map(base_map())
+    leafletProxy("map1") %>% 
+      clearShapes()  %>%
+      addRectangles(layerId = "init",lng1 = paths$lon1_2, lng2 =  paths$lon2_2, lat1= paths$lat1_2, lat2 = paths$lat2_2 )
+    
+    
+  }
+  
 })  
 
 
 
-  observeEvent(input$map1_draw_new_feature,{
+observeEvent(input$map1_draw_new_feature,{
+    
+    if(input$Check1=="1"){
     req(input$map1_draw_new_feature)
     
     feature <- input$map1_draw_new_feature$geometry$coordinates[[1]]
     
     
-    paths$lon1 <- feature[[1]][[1]]
-    paths$lon2 <- feature[[3]][[1]]
-    paths$lat1 <- feature[[1]][[2]]
-    paths$lat2 <- feature[[2]][[2]]
+    paths$lon1 <- round(feature[[1]][[1]])
+    paths$lon2 <- round(feature[[3]][[1]])
+    paths$lat1 <- round(feature[[1]][[2]])
+    paths$lat2 <- round(feature[[2]][[2]])
     
     
     #addRectangles(lng1 = feature[[1]][[1]], lng2 = feature[[3]][[1]], lat1= feature[[1]][[2]], lat2 = feature[[2]][[2]])
-    updateNumericInput(session, "lon1_1",value=feature[[1]][[1]])
-    updateNumericInput(session, "lon2_1",value=feature[[3]][[1]])
-    updateNumericInput(session, "lat1_1",value=feature[[1]][[2]])
-    updateNumericInput(session, "lat2_1",value=feature[[2]][[2]])
+    updateNumericInput(session, "lon1_1",value=round(feature[[1]][[1]]))
+    updateNumericInput(session, "lon2_1",value=round(feature[[3]][[1]]))
+    updateNumericInput(session, "lat1_1",value=round(feature[[1]][[2]]))
+    updateNumericInput(session, "lat2_1",value=round(feature[[2]][[2]]))
     
-    
+    }else{
+      
+    req(input$map1_draw_new_feature)
+      
+    feature <- input$map1_draw_new_feature$geometry$coordinates[[1]]
+      
+      
+    paths$lon1_2 <- round(feature[[1]][[1]])
+    paths$lon2_2 <- round(feature[[3]][[1]])
+    paths$lat1_2 <- round(feature[[1]][[2]])
+    paths$lat2_2 <- round(feature[[2]][[2]])
+      
+      
+      #addRectangles(lng1 = feature[[1]][[1]], lng2 = feature[[3]][[1]], lat1= feature[[1]][[2]], lat2 = feature[[2]][[2]])
+    updateNumericInput(session, "lon1_2",value=round(feature[[1]][[1]]))
+    updateNumericInput(session, "lon2_2",value=round(feature[[3]][[1]]))
+    updateNumericInput(session, "lat1_2",value=round(feature[[1]][[2]]))
+    updateNumericInput(session, "lat2_2",value=round(feature[[2]][[2]]))
+      
+      
+      
+    }
   })
+  
+
   
   
   shinyjs::onclick("start",expr = {
-    print(!is.na(input$syear))
+    print(input$Check1)
   })
   
   observeEvent(input$download,{
