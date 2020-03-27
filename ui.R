@@ -193,7 +193,8 @@ body <- dashboardBody(
                  )
                  
                  
-               )
+               ),
+               textInput("text3", label = h4("Selección Actual"), value = "NULL")
               ,withBusyIndicatorUI( 
               bsButton("download", label = "Descargar TSM", style = "primary")
               ),

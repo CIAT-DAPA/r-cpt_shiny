@@ -196,7 +196,7 @@ shinyServer(function(input, output, session) {
 
   observeEvent(input$copi,{
     
-    if (nchar(as.character(input$text))>0 & is.null(paths$dir_x)== FALSE){
+    if (nchar(as.character(input$text))>0 & is.null(paths$dir_x)== FALSE & is.null(input$upload$datapath)== FALSE){
       
       shiny::withProgress(message = "Application loading", value = 0, {
         
@@ -221,7 +221,7 @@ shinyServer(function(input, output, session) {
       sendSweetAlert(
         session = session,
         title = "Error !!",
-        text = "Por favor escriba un nombre de carpeta y/o seleccione una ubicación",
+        text = "Por favor escriba un nombre de carpeta y/o seleccione una ubicación y/o seleccione un archivo",
         type = "error"
       )
     }
@@ -242,7 +242,9 @@ shinyServer(function(input, output, session) {
     react_map()
   })
   
- 
+  shinyjs::onclick("Check1",expr = {
+    updateNavbarPage(session, "nvpg1",selected = "Selector de área")
+  })
     
   shinyjs::onclick("lon1_1",expr = {
     updateNavbarPage(session, "nvpg1",selected = "Selector de área")
@@ -341,7 +343,7 @@ observeEvent(input$map1_draw_new_feature,{
   
   
   shinyjs::onclick("start",expr = {
-    print(input$Check1)
+    print(input$upload$datapath)
   })
   
   observeEvent(input$download,{
@@ -360,6 +362,13 @@ observeEvent(input$map1_draw_new_feature,{
                         download_CFSV2_CPT_1(firs_year=input$syear,last_year=input$lyear,i_month=as.numeric(input$start),ic=as.numeric(input$ic),dir_save=paths$x_path,area1=area,lg=as.numeric(input$length))
                      })
                    })  
+                   
+                   sendSweetAlert(
+                     session = session,
+                     title = "TSM descargada",
+                     text = paste("En la siguiente ruta:",paste(paths$main_path,"/sst")),
+                     type = "succes"
+                   )
                    
                    updateButton(session, "download", label = "TSM descargada", style = "success")
                    paths$succes3 = "TRUE"
@@ -394,7 +403,15 @@ observeEvent(input$map1_draw_new_feature,{
                            download_CFSV2_CPT_2(firs_year=input$syear,last_year=input$lyear,i_month=as.numeric(input$start),ic=as.numeric(input$ic),dir_save=paths$x_path,area1=area,lg=as.numeric(input$length),area2 = area1)
                          })
                        })  
-                       
+                    
+                    sendSweetAlert(
+                      session = session,
+                      title = "TSM descargada",
+                      text = paste("En la siguiente ruta:",paste(paths$main_path,"/sst")),
+                      type = "succes"
+                    )
+                    
+                    
                        updateButton(session, "download", label = "TSM descargada", style = "success")
                        paths$succes3 = "TRUE"
                   }else{
@@ -437,6 +454,19 @@ observeEvent(input$map1_draw_new_feature,{
     
   })
   
+  observeEvent(c(input$start,input$length,input$ic),{
+    
+    meses <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio",
+               "Agosto","Septiembre","Octubre","Noviembre","Diciembre","Enero","Febrero")
+    
+    text=paste(meses[as.numeric(input$start):(as.numeric(input$start)+as.numeric(input$length)-1)],collapse="-")
+    text1=paste0(text," Inicializado en ",meses[as.numeric(input$ic)])
+    
+    updateTextInput(session, "text3", 
+                    label= "Seleccion Actual",
+                    value = text1)
+    
+  } )
   
   
   output$sliderInputUI <- renderUI({
