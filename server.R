@@ -99,6 +99,153 @@ download_CFSV2_CPT_2=function(firs_year,last_year,i_month,ic,dir_save,area1,lg,a
   
 }
 
+run_cpt=function(x,y,run,output,modes_x,modes_y,modes_cca,trans,type_trans){
+  
+  file_y=read.table(y,sep="\t",dec=".",skip =3,fill=TRUE,na.strings =-999,stringsAsFactors=FALSE)
+  p=dim(file_y)[2]-1
+  mode_y=modes_y
+  if(p<10)mode_y=p
+  mode_cca=modes_cca
+  if(p<5)mode_cca=p
+  
+  t=ifelse(trans==1,541," ")
+  
+  GI=paste0(output,"_GI.txt"); pear=paste0(output,"_pearson.txt"); afc=paste0(output,"_2afc.txt")
+  prob=paste0(output,"_prob.txt");roc_a=paste0(output,"_roc_a.txt");roc_b=paste0(output ,"_roc_b.txt")
+  pca_eigen_x=paste0(output,"_pca_eigen_x.txt"); pca_load_x=paste0(output,"_pca_load_x.txt"); pca_scores_x=paste0(output,"_pca_scores_x.txt")
+  pca_eigen_y=paste0(output,"_pca_eigen_y.txt"); pca_load_y=paste0(output,"_pca_load_y.txt"); pca_scores_y=paste0(output,"_pca_scores_y.txt")
+  cca_load_x=paste0(output,"_cca_load_x.txt"); cca_cc=paste0(output,"_cca_cc.txt"); cca_scores_x=paste0(output,"_cca_scores_x.txt")
+  cca_load_y=paste0(output,"_cca_load_y.txt"); cca_scores_y=paste0(output,"_cca_scores_y.txt")
+  
+  hit_s=paste0(output,"_hit_s.txt")
+  hit_ss=paste0(output,"_hit_ss.txt")
+  
+  cmd <- "@echo off
+  (
+  echo 611
+  echo 545
+  echo 1
+  echo %path_x% 
+  echo /
+  echo /
+  echo /
+  echo /
+  echo 1
+  echo %modex%
+  echo 2
+  echo %path_y%
+  echo /
+  echo /
+  echo /
+  echo /
+  echo 1
+  echo %modey%
+  echo 1
+  echo %modecca%
+  echo 9
+  echo 1
+  echo 532
+  echo /
+  echo /
+  echo N
+  echo 2
+  echo 554
+  echo %typetrans%
+  echo %trans%
+  echo 112
+  echo %path_GI%
+  echo 311
+  echo 451
+  echo 455
+  echo 413
+  echo 1
+  echo %path_pear%
+  echo 413
+  echo 3
+  echo %path_2afc%
+  echo 413
+  echo 4 
+  echo %path_hit_s%
+  echo 413  
+  echo 5
+  echo %path_hit_ss% 
+  echo 413
+  echo 10
+  echo %path_roc_b%
+  echo 413
+  echo 11
+  echo %path_roc_a%
+  echo 111
+  echo 301
+  echo %path_pca_eigen_x%
+  echo 302
+  echo %path_pca_load_x%
+  echo 303
+  echo %path_pca_scores_x%
+  echo 311
+  echo %path_pca_eigen_y%
+  echo 312
+  echo %path_pca_load_y%
+  echo 313
+  echo %path_pca_scores_y%
+  echo 401
+  echo %path_cca_cc%
+  echo 411
+  echo %path_cca_load_x%
+  echo 412
+  echo %path_cca_scores_x%
+  echo 421
+  echo %path_cca_load_y%
+  echo 422
+  echo %path_cca_scores_y%
+  echo 501
+  echo %path_prob%
+  echo 0
+  echo 0
+  ) | CPT_batch.exe"
+  
+  cmd<-gsub("%path_x%",x,cmd)
+  cmd<-gsub("%path_y%",y,cmd)
+  cmd<-gsub("%path_GI%",GI,cmd)
+  cmd<-gsub("%path_pear%",pear,cmd)
+  cmd<-gsub("%path_2afc%",afc,cmd)
+  cmd<-gsub("%path_roc_b%",roc_b,cmd)
+  cmd<-gsub("%path_roc_a%",roc_a,cmd)
+  cmd<-gsub("%path_prob%",prob,cmd)
+  cmd<-gsub("%modey%",mode_y,cmd)
+  cmd<-gsub("%modex%",modes_x,cmd)
+  cmd<-gsub("%modecca%",mode_cca,cmd)
+  cmd<-gsub("%typetrans%",type_trans,cmd)
+  cmd<-gsub("%trans%",t,cmd)
+  cmd<-gsub("%path_cca_load_x%",cca_load_x,cmd)
+  cmd<-gsub("%path_cca_cc%",cca_cc,cmd)
+  
+  cmd<-gsub("%path_pca_eigen_x%",pca_eigen_x,cmd)
+  cmd<-gsub("%path_pca_load_x%",pca_load_x,cmd)
+  cmd<-gsub("%path_pca_scores_x%",pca_scores_x,cmd)
+  cmd<-gsub("%path_pca_eigen_y%",pca_eigen_y,cmd)
+  cmd<-gsub("%path_pca_load_y%",pca_load_y,cmd)
+  cmd<-gsub("%path_pca_scores_y%",pca_scores_y,cmd)
+  cmd<-gsub("%path_cca_scores_x%",cca_scores_x,cmd)
+  cmd<-gsub("%path_cca_scores_y%",cca_scores_y,cmd)
+  cmd<-gsub("%path_cca_load_y%",cca_load_y,cmd)
+  
+  cmd<-gsub("%path_hit_s%",hit_s,cmd)
+  cmd<-gsub("%path_hit_ss%",hit_ss,cmd)
+  
+  
+  write(cmd,run)
+  #shell.exec(run)
+  system2(run)
+  
+}
+
+
+
+
+
+
+
 shinyServer(function(input, output, session) {
 
   base_map <- function(){
@@ -144,33 +291,40 @@ shinyServer(function(input, output, session) {
     
   })
   
-  shinyDirChoose(input, "xdir",
+  shinyDirChoose(input, "main_dir",
                  roots = c('Documents' = Sys.getenv("HOME"), 'Local Disk' = Sys.getenv("HOMEDRIVE") ),
                  defaultRoot = "Documents",
                  session=session)
   
-  observeEvent(input$xdir, {
+  observeEvent(input$main_dir, {
     
-    paths$dir_x <- parseDirPath( c('Documents' = Sys.getenv("HOME"), 'Local Disk' = Sys.getenv("HOMEDRIVE") ), input$xdir)
+    paths$main_dir <- parseDirPath( c('Documents' = Sys.getenv("HOME"), 'Local Disk' = Sys.getenv("HOMEDRIVE") ), input$main_dir)
     
     updateTextInput(session, "text1", 
                     label = "Dir path chosen",
-                    value = as.character(paths$dir_x))
+                    value = as.character(paths$main_dir))
   })
   
   observeEvent(input$action,{
     
-    if (nchar(as.character(input$text))>0 & is.null(paths$dir_x)==FALSE ){
+    if (nchar(as.character(input$text))>0 & is.null(paths$main_dir)==FALSE ){
       
-      paths$main_path <-as.character(paste0(paths$dir_x,"/",input$text))
-      paths$x_path <- as.character(paste0(paths$main_path,"/","sst"))
-      paths$y_path <- as.character(paste0(paths$main_path,"/","stations"))
+      paths$main_path <-as.character(paste0(paths$main_dir,"/",input$text))
+      paths$x_path <- as.character(paste0(paths$main_path,"/input/","sst_cfsv2"))
+      paths$y_path <- as.character(paste0(paths$main_path,"/input/","stations"))
       paths$outputs <- as.character(paste0(paths$main_path,"/","output"))
-      
+      paths$path_run <- as.character(paste0(paths$main_path,"/","bat_files"))
+        
+        
+        
       dir.create(paths$main_path)
-      dir.create(paths$x_path)
-      dir.create(paths$y_path)
+      dir.create(paths$x_path,recursive = T)
+      dir.create(paths$y_path,recursive = T)
       dir.create(paths$outputs)
+      dir.create(paths$path_run)
+      dir.create(paste0(paths$outputs,"/raw_output"),recursive = T)
+      dir.create(paste0(paths$outputs,"/all_domain"),recursive = T)
+      dir.create(paste0(paths$outputs,"/opt_domain"),recursive = T)
       
       sendSweetAlert(
         session = session,
@@ -196,7 +350,7 @@ shinyServer(function(input, output, session) {
 
   observeEvent(input$copi,{
     
-    if (nchar(as.character(input$text))>0 & is.null(paths$dir_x)== FALSE & is.null(input$upload$datapath)== FALSE){
+    if (nchar(as.character(input$text))>0 & is.null(paths$main_dir)== FALSE & is.null(input$upload$datapath)== FALSE){
       
       shiny::withProgress(message = "Application loading", value = 0, {
         
@@ -343,12 +497,12 @@ observeEvent(input$map1_draw_new_feature,{
   
   
   shinyjs::onclick("start",expr = {
-    print(input$upload$datapath)
+    print(list.files(paths$x_path,full.names = T))
   })
   
   observeEvent(input$download,{
     
-    if (nchar(as.character(input$text))>0 & is.null(paths$dir_x)== FALSE){
+    if (nchar(as.character(input$text))>0 & is.null(paths$main_dir)== FALSE){
     
          if(input$Check1=="1"){
            
@@ -483,6 +637,24 @@ observeEvent(input$map1_draw_new_feature,{
       
     }
   })
+  
+  observeEvent(input$run,{
+     
+    
+    x_file=list.files(paths$x_path,full.names = T)
+    y_file=list.files(paths$y_path,full.names = T)
+    names_x <-  substr(basename(x_file),1,nchar(basename(x_file))-4)
+    out_file = paste0(paths$main_dir,"/output/raw_output/",names_x,"_0")
+    run_file = paste0(paths$main_dir,"/bat_files/",names_x,"_0",".bat")
+    
+    print(x_file)
+    print(y_file)
+    print(names_x)
+    print(out_file)
+    print(run_file)
+    
+  })
+  
   
   
   

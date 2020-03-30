@@ -128,7 +128,7 @@ body <- dashboardBody(
                textInput("text", label = h4("Nombre Carpeta trabajo:"), value = "",width = 300),
                tags$hr(),
                textInput("text1", label = h4("Seleccionar carpeta"), value = "NULL"),
-               shinyDirButton("xdir", "seleccionar ubicación","Buscar" ),
+               shinyDirButton("main_dir", "seleccionar ubicación","Buscar" ),
                tags$hr(),
                
                splitLayout(cellWidths = c("30%","40%"),
