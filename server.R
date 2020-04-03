@@ -99,6 +99,35 @@ download_CFSV2_CPT_2=function(firs_year,last_year,i_month,ic,dir_save,area1,lg,a
   
 }
 
+transform_raster=function(x,y){
+  mapa_base=raster(ext=y, res=c(1,1))
+  val=c(as.matrix(t(x),ncol=1,byrow = T))
+  val=as.numeric(val)
+  val[val==-999|val== 0]=NA
+  values(mapa_base)=val
+  return(mapa_base)
+}
+
+data_raster=function(dates){
+  
+  year_month=dates[1,][!is.na(dates[1,])]
+  year=ifelse(substr(year_month[-1],6,7)=="12",substr(year_month[-1],9,12),substr(year_month[-1],1,4))
+  data_cpt1=na.omit(dates)
+  pos=which(data_cpt1[,1]=="")
+  pos=sort(rep(year,pos[2]-pos[1]))
+  list_dates=split(data_cpt1,pos)
+  lon=as.numeric(as.character(list_dates[[1]][1,-1]))
+  lat=as.numeric(as.character(list_dates[[1]][-1,1]))
+  cos_lat=diag(sqrt(cos((pi/180)*lat)))
+  tables=lapply(list_dates,"[",-1,-1)
+  tables_numeric=lapply(tables,function(x)sapply(x,function(y)as.numeric(as.character(y))))
+  ex=extent(min(lon)-0.5,max(lon)+0.5,min(lat)-0.5,max(lat)+0.5)
+  all_raster=lapply(tables_numeric,transform_raster,ex)
+  layers=stack(all_raster)
+  return(layers)
+  
+}
+
 run_cpt=function(x,y,run,output,modes_x,modes_y,modes_cca,trans,type_trans){
   
   file_y=read.table(y,sep="\t",dec=".",skip =3,fill=TRUE,na.strings =-999,stringsAsFactors=FALSE)
@@ -240,6 +269,63 @@ run_cpt=function(x,y,run,output,modes_x,modes_y,modes_cca,trans,type_trans){
   
 }
 
+correl <- function(x,y){
+  
+  y[1,1]=""
+  loadings <- na.omit(y)
+  loadings[loadings==-999]=NA
+  pos=which(loadings[,1]=="")
+  if(length(pos)==1){list_dates=list(loadings)}else{vector_split <- sort(rep(pos,pos[2]-1));list_dates <- split(loadings,vector_split)}
+  tables=lapply(list_dates,"[",-1,-1)
+  cor_ca=x[1:length(tables),1]
+  final=Reduce("+",Map(function(x,y) abs(x)*y ,tables,cor_ca))/sum(cor_ca)
+  final_vec=as.vector(as.matrix(t(final)))
+  
+  return(final_vec)
+}
+
+files_x=function(raster,cor,na,years){
+  
+  coor_min=apply(coordinates(raster),2,min) 
+  coor_max=apply(coordinates(raster),2,max) 
+  coor_all=cbind(coor_min,coor_max)
+  
+  year_p=paste0("cpt:T=",years)
+  
+  for(i in seq(0.1,0.9,0.1)){
+    
+    #pos_data=which(!is.na(values(raster)[,1]))
+    pos_selec=which(cor<quantile(cor,i,na.rm=T))
+    #pos_final=pos_data*pos_selec
+    val=values(raster)
+    val[pos_selec,]=NA
+    val[which(is.na(val),arr.ind = T)]= -999
+    val_l=split(val,col(val))
+    
+    
+    lat=sort(seq(coor_all[2,1],coor_all[2,2]),decreasing = T)
+    lon=sort(seq(coor_all[1,1],coor_all[1,2]))
+    val_matrix=lapply(val_l,function(x)matrix(x,length(lat),length(lon),byrow=TRUE,dimnames=list(lat,lon)))
+    
+    
+    p="xmlns:cpt=http://iri.columbia.edu/CPT/v10/"
+    p1="cpt:nfields=1"
+    p2=paste0("cpt:field=ssta, ",year_p[1],", cpt:nrow=",length(lat),", cpt:ncol=",length(lon),", cpt:row=Y, cpt:col=X, cpt:units=Kelvin_scale, cpt:missing=-999")
+    
+    name_file=paste0(na,"_",i,".txt")
+    sink(name_file)
+    cat(p)
+    cat("\n")
+    cat(p1) 
+    cat("\n")
+    cat(p2) 
+    cat("\n")
+    u=Map(function(x,y){write.table(t(c(" ",lon)),sep="\t",col.names=F,row.names=F,quote = F);write.table(x,sep="\t",col.names=F,row.names=T,quote = F);cat(y);cat("\n")},val_matrix,c(year_p[-1],""))
+    sink()
+  }
+  
+  return("Successful process")   
+}
 
 
 
@@ -640,12 +726,17 @@ observeEvent(input$map1_draw_new_feature,{
   
   observeEvent(input$run,{
      
+    modes_x <- 10
+    modes_y <- 10
+    modes_cca <- 5
+    trans <- 0       ###### 1 si quiere hacer transformacion y 0 si no quiere hacer transformacion
+    type_trans <- 2
     
     x_file=list.files(paths$x_path,full.names = T)
     y_file=list.files(paths$y_path,full.names = T)
     names_x <-  substr(basename(x_file),1,nchar(basename(x_file))-4)
-    out_file = paste0(paths$main_dir,"/output/raw_output/",names_x,"_0")
-    run_file = paste0(paths$main_dir,"/bat_files/",names_x,"_0",".bat")
+    out_file = paste0(paths$main_dir,"/",input$text,"/output/raw_output/",names_x,"_0")
+    run_file = paste0(paths$main_dir,"/",input$text,"/bat_files/",names_x,"_0",".bat")
     
     print(x_file)
     print(y_file)
@@ -653,6 +744,49 @@ observeEvent(input$map1_draw_new_feature,{
     print(out_file)
     print(run_file)
     
+   first_run <- run_cpt(x_file,y_file,run_file,out_file,modes_x,modes_y,modes_cca,trans,type_trans)
+   
+   cat("\n Primera corrida realizada")
+   
+   tsm_list <- read.table(x_file,sep="\t",dec=".",skip =2,fill=TRUE,na.strings =-999,stringsAsFactors=FALSE)
+   time=as.character(tsm_list[1,])[-1]
+   time_sel=time[time!="NA"]
+   tsm_raster <- data_raster(tsm_list)
+   
+   cat("\n Datos cargados en formato raster")
+   
+   path_cc <- list.files(paste0(paths$main_dir,"/",input$text,"/output/raw_output/"),full.names = T,pattern = "cca_cc")
+   path_load <- list.files(paste0(paths$main_dir,"/",input$text,"/output/raw_output/"),full.names = T,pattern = "cca_load_x")
+   cc <-  read.table(path_cc,sep="\t",dec=".",header = T,row.names = 1,skip =2,fill=TRUE,na.strings =-999,stringsAsFactors=FALSE)
+   load <- read.table(path_load,sep="\t",dec=".",skip =2,fill=TRUE,na.strings =-999,stringsAsFactors=FALSE)
+   cor_tsm <-correl(cc,load)
+   print(cor_tsm)
+   
+   cat("\n Correlación calculada")
+   
+   names_selec <-paste0(paths$main_dir,"/",input$text,"/input/sst_cfsv2/",names_x)
+   
+   files_x(tsm_raster,cor_tsm,names_selec,time_sel)
+   
+   cat("\n Archivos de la TSM construidos por deciles para CPT \n")
+   
+   path_x_2 <- list.files(paste0(paths$main_dir,"/",input$text,"/input/sst_cfsv2"),full.names = T,pattern = "0.")
+   print(path_x_2)
+   names_x_2 <-  substr(basename(path_x_2),1,nchar(basename(path_x_2))-4)
+   print(names_x_2)
+   path_run_2 <- paste0(paths$main_dir,"/",input$text,"/bat_files/",names_x_2,".bat")
+   print(path_run_2)
+   path_output_2 <-  paste0(paths$main_dir,"/",input$text,"/output/raw_output/",names_x_2)
+   print(path_output_2)
+   
+   
+   
+   o_empty_2 <-Map(run_cpt,path_x_2,y_file,path_run_2,path_output_2,modes_x,modes_y,modes_cca,trans,type_trans)
+   
+   
+   
+   
+   
   })
   
   
