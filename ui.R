@@ -6,8 +6,26 @@
 # 
 #    http://shiny.rstudio.com/
 #
-library(pacman)
-pacman::p_load(tidyverse,shinyhttr,sf,stringr,R.utils, shiny, shinyFiles, shinyWidgets, shinydashboard, shinyBS, leaflet, leaflet.extras)
+#library(pacman)
+#pacman::p_load(tidyverse,shinyhttr,sf,stringr,R.utils, shiny, shinyFiles, shinyWidgets, shinydashboard, shinyBS, leaflet, leaflet.extras)
+
+suppressMessages(if(!require(tidyverse)){install.packages('tidyverse'); library(tidyverse)} else {library(tidyverse)})
+suppressMessages(if(!require(shinyhttr)){install.packages('shinyhttr'); library(shinyhttr)} else {library(shinyhttr)})
+suppressMessages(if(!require(sf)){install.packages('sf'); library(sf)} else {library(sf)})
+suppressMessages(if(!require(stringr)){install.packages('stringr'); library(stringr)} else {library(stringr)})
+suppressMessages(if(!require(R.utils)){install.packages('R.utils'); library(R.utils)} else {library(R.utils)})
+suppressMessages(if(!require(shiny)){install.packages('shiny'); library(shiny)} else {library(shiny)})
+suppressMessages(if(!require(shinyFiles)){install.packages('shinyFiles'); library(shinyFiles)} else {library(shinyFiles)})
+suppressMessages(if(!require(shinyWidgets)){install.packages('shinyWidgets'); library(shinyWidgets)} else {library(shinyWidgets)})
+suppressMessages(if(!require(shinydashboard)){install.packages('shinydashboard'); library(shinydashboard)} else {library(shinydashboard)})
+suppressMessages(if(!require(shinyBS)){install.packages('shinyBS'); library(shinyBS)} else {library(shinyBS)})
+suppressMessages(if(!require(leaflet)){install.packages('leaflet'); library(leaflet)} else {library(leaflet)})
+suppressMessages(if(!require(leaflet.extras)){install.packages('leaflet.extras'); library(leaflet.extras)} else {library(leaflet.extras)})
+suppressMessages(if(!require(shinyBS)){install.packages('shinyBS'); library(shinyBS)} else {library(shinyBS)})
+
+
+
+
 
 ####### Functions #######
 

@@ -6,7 +6,21 @@
 # 
 #    http://shiny.rstudio.com/
 #
-pacman::p_load(tidyverse,shinyhttr,sf,stringr,R.utils , leaflet, leaflet.extras)
+
+suppressMessages(if(require(shinyhttr)==FALSE){install.packages("shinyhttr")});library("shinyhttr")
+suppressMessages(if(require(sf)==FALSE){install.packages("sf")});library("sf")
+suppressMessages(if(require(stringr)==FALSE){install.packages("stringr")});library("stringr")
+suppressMessages(if(require(R.utils)==FALSE){install.packages("R.utils")});library("R.utils")
+suppressMessages(if(require(leaflet)==FALSE){install.packages("leaflet")});library("leaflet")
+suppressMessages(if(require(leaflet.extras)==FALSE){install.packages("leaflet.extras")});library("leaflet.extras")
+suppressMessages(if(require(tidyverse)==FALSE){install.packages("tidyverse")});library("tidyverse")
+suppressMessages(if(require(parallel)==FALSE){install.packages("parallel")});library("parallel")
+suppressMessages(if(!require(sf)){install.packages('sf'); library(sf)} else {library(sf)})
+suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
+suppressMessages(if(!require(sp)){install.packages('sp'); library(raster)} else {library(sp)})
+suppressMessages(if(!require(dplyr)){install.packages('dplyr'); library(dplyr)} else {library(dplyr)})
+
+
 
 options(shiny.maxRequestSize=30*1024^2) 
 options(timeout=180)
@@ -104,7 +118,7 @@ transform_raster=function(x,y){
   val=c(as.matrix(t(x),ncol=1,byrow = T))
   val=as.numeric(val)
   val[val==-999|val== 0]=NA
-  values(mapa_base)=val
+  raster::values(mapa_base)=val
   return(mapa_base)
 }
 
@@ -121,7 +135,7 @@ data_raster=function(dates){
   cos_lat=diag(sqrt(cos((pi/180)*lat)))
   tables=lapply(list_dates,"[",-1,-1)
   tables_numeric=lapply(tables,function(x)sapply(x,function(y)as.numeric(as.character(y))))
-  ex=extent(min(lon)-0.5,max(lon)+0.5,min(lat)-0.5,max(lat)+0.5)
+  ex=raster::extent(min(lon)-0.5,max(lon)+0.5,min(lat)-0.5,max(lat)+0.5)
   all_raster=lapply(tables_numeric,transform_raster,ex)
   layers=stack(all_raster)
   return(layers)
@@ -265,7 +279,10 @@ run_cpt=function(x,y,run,output,modes_x,modes_y,modes_cca,trans,type_trans){
   
   write(cmd,run)
   #shell.exec(run)
-  system2(run)
+  print(run)
+  Sys.chmod(run,mode="777")
+  system(run)
+  
   
 }
 
@@ -297,7 +314,7 @@ files_x=function(raster,cor,na,years){
     #pos_data=which(!is.na(values(raster)[,1]))
     pos_selec=which(cor<quantile(cor,i,na.rm=T))
     #pos_final=pos_data*pos_selec
-    val=values(raster)
+    val=raster::values(raster)
     val[pos_selec,]=NA
     val[which(is.na(val),arr.ind = T)]= -999
     val_l=split(val,col(val))
@@ -327,10 +344,17 @@ files_x=function(raster,cor,na,years){
   return("Successful process")   
 }
 
-
-
-
-
+best_GI=function(x){
+  
+  all_path=paste0(x,"_",seq(0,0.9,0.1),"_GI.txt")
+  names=substr(basename(all_path),1,nchar(basename(all_path))-4)
+  all_GI=lapply(all_path,function(x)read.table(x,header=T,dec=".",skip=5))  
+  best=lapply(all_GI,function(x) x[dim(x)[1],dim(x)[2]] )
+  pos=which(unlist(best)==max(unlist(best)))[1]
+  output=substr(names[pos],1,nchar(names[pos])-3)
+  return(output)
+  
+}
 
 shinyServer(function(input, output, session) {
 
@@ -761,10 +785,14 @@ observeEvent(input$map1_draw_new_feature,{
    load <- read.table(path_load,sep="\t",dec=".",skip =2,fill=TRUE,na.strings =-999,stringsAsFactors=FALSE)
    cor_tsm <-correl(cc,load)
    print(cor_tsm)
+   print(tsm_raster)
+  
+   print(time_sel)
    
    cat("\n Correlación calculada")
    
    names_selec <-paste0(paths$main_dir,"/",input$text,"/input/sst_cfsv2/",names_x)
+   print(names_selec)
    
    files_x(tsm_raster,cor_tsm,names_selec,time_sel)
    
@@ -779,11 +807,23 @@ observeEvent(input$map1_draw_new_feature,{
    path_output_2 <-  paste0(paths$main_dir,"/",input$text,"/output/raw_output/",names_x_2)
    print(path_output_2)
    
+   numCores <- detectCores()
+   numCores
+   cl <- makeCluster(numCores-1)
+   clusterExport(cl,list("run_cpt","path_x_2","y_file","path_run_2","path_output_2","modes_x","modes_y","modes_cca","trans","type_trans"),envir=environment()) 
+   clusterEvalQ(cl, library("sp"))
+   clusterEvalQ(cl, library("raster"))
    
+   o_empty_2 <-clusterMap(cl,run_cpt,path_x_2,y_file,path_run_2,path_output_2,modes_x,modes_y,modes_cca,trans,type_trans)
    
-   o_empty_2 <-Map(run_cpt,path_x_2,y_file,path_run_2,path_output_2,modes_x,modes_y,modes_cca,trans,type_trans)
+   stopCluster(cl)
    
+   cat("\n Segunda corrida realizada\n")
    
+   folder_output <- paste0(paths$main_dir,"/",input$text,"/output/raw_output/",names_x)
+   best_decil=lapply(folder_output,best_GI) %>% lapply(.,unlist)
+   print(best_decil)
+   cat("\n Mejor corrida seleccionada \n")
    
    
    
