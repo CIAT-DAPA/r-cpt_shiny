@@ -138,11 +138,28 @@ body <- dashboardBody(
                              
                         }
 
+                       .shiny-notification {
+                       box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+                       padding: 8px;
+                       opacity: 1;
+                       border: 1px solid #ccc;
+                       border-radius: 5px; / 5px rounded corners /
+                       margin: 0 auto;
+                       height: 100px;
+                       width: 800px;
+                       position:fixed;
+                       top: calc(50% - 50px);
+                       left: calc(50% - 400px);
+                       font-size: 250%;
+                       text-align: center;
+                       background-color:white;
+                       }
+
                    </style>
 
                    ')),
         column(width = 4,
-           box(width = NULL, solidHeader = TRUE,status = "warning", title = "Crear directorio raiz",
+           box(width = NULL, solidHeader = TRUE,status = "info", title = "Crear directorio raiz",
                textInput("text", label = h4("Nombre Carpeta trabajo:"), value = "",width = 300),
                tags$hr(),
                textInput("text1", label = h4("Seleccionar carpeta"), value = "NULL"),
@@ -164,7 +181,7 @@ body <- dashboardBody(
                )
                
             ),
-           box(width = NULL, title = "Descarga predictres TSM" ,solidHeader = TRUE,status = "warning", collapsible = TRUE,
+           box(width = NULL, title = "Descarga predictres TSM" ,solidHeader = TRUE,status = "primary", collapsible = TRUE,
                
                radioButtons(inputId="Check1", label=h4 ("Cantidad de areas predictoras"),
                             choices=c("1 area predictoras" = 1,"2 areas predictoras" = 2),

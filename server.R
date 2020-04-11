@@ -19,6 +19,7 @@ suppressMessages(if(!require(sf)){install.packages('sf'); library(sf)} else {lib
 suppressMessages(if(!require(raster)){install.packages('raster'); library(raster)} else {library(raster)})
 suppressMessages(if(!require(sp)){install.packages('sp'); library(raster)} else {library(sp)})
 suppressMessages(if(!require(dplyr)){install.packages('dplyr'); library(dplyr)} else {library(dplyr)})
+suppressMessages(if(require(RColorBrewer)==FALSE){install.packages("RColorBrewer")});library("RColorBrewer")
 
 
 
@@ -279,9 +280,9 @@ run_cpt=function(x,y,run,output,modes_x,modes_y,modes_cca,trans,type_trans){
   
   write(cmd,run)
   #shell.exec(run)
-  print(run)
-  Sys.chmod(run,mode="777")
-  system(run)
+  #print(run)
+  #Sys.chmod(run,mode="777")
+  system2(run)
   
   
 }
@@ -301,7 +302,7 @@ correl <- function(x,y){
   return(final_vec)
 }
 
-files_x=function(raster,cor,na,years){
+files_x=function(raster,cor,na,years,i){
   
   coor_min=apply(coordinates(raster),2,min) 
   coor_max=apply(coordinates(raster),2,max) 
@@ -309,7 +310,7 @@ files_x=function(raster,cor,na,years){
   
   year_p=paste0("cpt:T=",years)
   
-  for(i in seq(0.1,0.9,0.1)){
+  
     
     #pos_data=which(!is.na(values(raster)[,1]))
     pos_selec=which(cor<quantile(cor,i,na.rm=T))
@@ -339,7 +340,7 @@ files_x=function(raster,cor,na,years){
     cat("\n")
     u=Map(function(x,y){write.table(t(c(" ",lon)),sep="\t",col.names=F,row.names=F,quote = F);write.table(x,sep="\t",col.names=F,row.names=T,quote = F);cat(y);cat("\n")},val_matrix,c(year_p[-1],""))
     sink()
-  }
+  
   
   return("Successful process")   
 }
@@ -353,6 +354,55 @@ best_GI=function(x){
   pos=which(unlist(best)==max(unlist(best)))[1]
   output=substr(names[pos],1,nchar(names[pos])-3)
   return(output)
+  
+}
+
+metricas=function(x){
+  
+  p=read.table(paste0(x,"_pearson.txt"),header=T,dec=".",skip=2,col.names = c("id","latitud","longitud","pearson"))
+  k=read.table(paste0(x,"_2afc.txt"),header=T,dec=".",skip=2,col.names = c("id","latitud","longitud","kendall"))
+  g=read.table(paste0(x,"_GI.txt"),header=T,dec=".",skip=5)
+  goodness=g[dim(g)[1],dim(g)[2]]
+  roc_b=read.table(paste0(x,"_roc_b.txt"),header=T,dec=".",skip=2,col.names = c("id","latitud","longitud","roc_b"))
+  roc_a=read.table(paste0(x,"_roc_a.txt"),header=T,dec=".",skip=2,col.names = c("id","latitud","longitud","roc_a"))
+  
+  hit_s=read.table(paste0(x,"_hit_s.txt"),header=T,dec=".",skip=2,col.names = c("id","latitud","longitud","hit_s"))
+  hit_ss=read.table(paste0(x,"_hit_ss.txt"),header=T,dec=".",skip=2,col.names = c("id","latitud","longitud","hit_ss"))
+  
+  hit=merge(hit_s,hit_ss)
+  
+  roc=merge(roc_b,roc_a)
+  p_k=merge(p,k)
+  all=merge(p_k,roc)
+  all_final=merge(all,hit)
+  metrics=cbind(file=basename(x),all_final,goodness)
+  
+  below=read.table(paste0(x,"_prob.txt"),header=T,nrow=3,dec=".",fill=T,skip=3,check.names = FALSE)[-1:-2,]
+  normal=read.table(paste0(x,"_prob.txt"),header=T,nrow=3,dec=".",fill=T,skip=8,check.names = FALSE)[-1:-2,]
+  above=read.table(paste0(x,"_prob.txt"),header=T,nrow=3,dec=".",fill=T,skip=13,check.names = FALSE)[-1:-2,]
+  coor=read.table(paste0(x,"_prob.txt"),header=T,nrow=2,dec=".",fill=T,skip=3,check.names = FALSE)
+  prob=cbind(id=names(below),below=as.matrix(below)[1,],normal=as.matrix(normal)[1,],above=as.matrix(above)[1,])
+  
+  all_data=merge(metrics,prob)
+  
+  return(all_data)
+}
+
+save_areas=function(ras,cor,all_name){
+  
+  name=basename(all_name) 
+  dec=str_split(name,"_")[[1]][3]
+  cor_raster=ras[[1]]
+  values(cor_raster)=cor
+  q1=quantile(cor,as.numeric(dec),na.rm=T)
+  jBrewColors <- brewer.pal(n = 9, name = "Reds")
+  tiff(paste0(all_name,".tiff"),compression = 'lzw',height = 6.5,width = 5.7,units="in", res=150)
+  par(mfrow=c(2,1))
+  plot(cor_raster,main="Weighted loadings",col=jBrewColors,colNA="gray",legend.width=1,legend.shrink=1)
+  plot(cor_raster>= q1,main="Selected pixels",colNA="gray",legend=F,col=jBrewColors)
+  dev.off()
+  
+  return(print("Área seleccionada guardada en formato Raster"))
   
 }
 
@@ -750,9 +800,11 @@ observeEvent(input$map1_draw_new_feature,{
   
   observeEvent(input$run,{
      
-    modes_x <- 10
-    modes_y <- 10
-    modes_cca <- 5
+    withProgress(message = 'Definiendo Parametros', value = 0,detail="0%", {
+    
+    modes_x <- 2
+    modes_y <- 2
+    modes_cca <- 1
     trans <- 0       ###### 1 si quiere hacer transformacion y 0 si no quiere hacer transformacion
     type_trans <- 2
     
@@ -768,16 +820,23 @@ observeEvent(input$map1_draw_new_feature,{
     print(out_file)
     print(run_file)
     
+   incProgress(1/10,message = "Realizando primera corrida",detail = paste0(10,"%")) 
+    
    first_run <- run_cpt(x_file,y_file,run_file,out_file,modes_x,modes_y,modes_cca,trans,type_trans)
    
    cat("\n Primera corrida realizada")
+   
+   incProgress(1/10,message = "Cargando datos en formato raster",detail = paste0(20,"%"))
    
    tsm_list <- read.table(x_file,sep="\t",dec=".",skip =2,fill=TRUE,na.strings =-999,stringsAsFactors=FALSE)
    time=as.character(tsm_list[1,])[-1]
    time_sel=time[time!="NA"]
    tsm_raster <- data_raster(tsm_list)
    
+   
    cat("\n Datos cargados en formato raster")
+   
+   incProgress(1/10,message = "Calculando correlación",detail = paste0(30,"%"))
    
    path_cc <- list.files(paste0(paths$main_dir,"/",input$text,"/output/raw_output/"),full.names = T,pattern = "cca_cc")
    path_load <- list.files(paste0(paths$main_dir,"/",input$text,"/output/raw_output/"),full.names = T,pattern = "cca_load_x")
@@ -789,14 +848,27 @@ observeEvent(input$map1_draw_new_feature,{
   
    print(time_sel)
    
+   
    cat("\n Correlación calculada")
    
+   incProgress(1/10,message = "Construyendo archivos tsm",detail = paste0(40,"%"))
+   
+   decil <- seq(0.1,0.9,0.1)
    names_selec <-paste0(paths$main_dir,"/",input$text,"/input/sst_cfsv2/",names_x)
    print(names_selec)
    
-   files_x(tsm_raster,cor_tsm,names_selec,time_sel)
+   numCores <- detectCores()
+   numCores
+   cl <- makeCluster(numCores-1)
+   clusterExport(cl,list("files_x","tsm_raster","cor_tsm","names_selec","time_sel","decil"),envir=environment()) 
+   clusterEvalQ(cl, library("sp"))
+   clusterEvalQ(cl, library("raster"))
+   
+   o_empty_1 <- clusterMap(cl,files_x,list(tsm_raster),list(cor_tsm),list(names_selec),list(time_sel),decil)
    
    cat("\n Archivos de la TSM construidos por deciles para CPT \n")
+   
+   incProgress(1/10,message = "Realizando segunda corrida",detail = paste0(50,"%"))
    
    path_x_2 <- list.files(paste0(paths$main_dir,"/",input$text,"/input/sst_cfsv2"),full.names = T,pattern = "0.")
    print(path_x_2)
@@ -807,12 +879,9 @@ observeEvent(input$map1_draw_new_feature,{
    path_output_2 <-  paste0(paths$main_dir,"/",input$text,"/output/raw_output/",names_x_2)
    print(path_output_2)
    
-   numCores <- detectCores()
-   numCores
-   cl <- makeCluster(numCores-1)
+   
    clusterExport(cl,list("run_cpt","path_x_2","y_file","path_run_2","path_output_2","modes_x","modes_y","modes_cca","trans","type_trans"),envir=environment()) 
-   clusterEvalQ(cl, library("sp"))
-   clusterEvalQ(cl, library("raster"))
+   
    
    o_empty_2 <-clusterMap(cl,run_cpt,path_x_2,y_file,path_run_2,path_output_2,modes_x,modes_y,modes_cca,trans,type_trans)
    
@@ -820,16 +889,42 @@ observeEvent(input$map1_draw_new_feature,{
    
    cat("\n Segunda corrida realizada\n")
    
+   incProgress(1/10,message = "seleccionando mejor corrida",detail = paste0(70,"%"))
+   
    folder_output <- paste0(paths$main_dir,"/",input$text,"/output/raw_output/",names_x)
    best_decil=lapply(folder_output,best_GI) %>% lapply(.,unlist)
    print(best_decil)
    cat("\n Mejor corrida seleccionada \n")
    
+   incProgress(1/10,message = "Guardando metricas del área optimizada",detail = paste0(80,"%"))
+   
+   best_path <- paste0(paths$main_dir,"/",input$text,"/output/raw_output/",best_decil)
+   all_metricas<- metricas(best_path)
+   o_empty_3= write.csv(all_metricas,paste0(paths$main_dir,"/",input$text,"/output/opt_domain/metrics.csv"),row.names=FALSE)
+  
+   cat("\n Metricas con dominio optimizado almacenadas \n")
+   
+   incProgress(1/10,message = "Guardando metricas de toda el área",detail = paste0(90,"%"))
+   
+   normal_path <-  paste0(folder_output,"_0")
+   all_metricas_n<- metricas(normal_path)
+   o_empty_4=write.csv(all_metricas_n,paste0(paths$main_dir,"/",input$text,"/output/all_domain/metrics.csv"),row.names=FALSE)
+   
+   cat("\n Metricas con todo el dominio almacenadas \n")
+   
+   incProgress(1/10,message = "Guardando áreas optimizadas",detail = paste0(95,"%"))
+   o_empty_5 <- save_areas(tsm_raster,cor_tsm,best_path)
+   
+   cat("\n Pixeles selecionados almacenados en .tiff  \n")
+   incProgress(1/10,message = "Proceso finalizado",detail = paste0(100,"%"))
+   
+   
+   
    
    
   })
   
-  
+  })
   
   
 })
