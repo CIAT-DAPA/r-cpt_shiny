@@ -20,6 +20,8 @@ suppressMessages(if(!require(raster)){install.packages('raster'); library(raster
 suppressMessages(if(!require(sp)){install.packages('sp'); library(raster)} else {library(sp)})
 suppressMessages(if(!require(dplyr)){install.packages('dplyr'); library(dplyr)} else {library(dplyr)})
 suppressMessages(if(require(RColorBrewer)==FALSE){install.packages("RColorBrewer")});library("RColorBrewer")
+suppressMessages(if(!require(shinyBS)){install.packages('shinyBS'); library(shinyBS)} else {library(shinyBS)})
+suppressMessages(if(!require(shinydashboard)){install.packages('shinydashboard'); library(shinydashboard)} else {library(shinydashboard)})
 
 
 
@@ -352,8 +354,12 @@ best_GI=function(x){
   all_GI=lapply(all_path,function(x)read.table(x,header=T,dec=".",skip=5))  
   best=lapply(all_GI,function(x) x[dim(x)[1],dim(x)[2]] )
   pos=which(unlist(best)==max(unlist(best)))[1]
-  output=substr(names[pos],1,nchar(names[pos])-3)
-  return(output)
+  output_1=substr(names[1],1,nchar(names[1])-3)
+  output_2=substr(names[pos],1,nchar(names[pos])-3)
+  print(output_1)
+  data_gi <- data.frame(text=c("area completa","area_optimizada"),gi=as.numeric(c(unlist(best)[1],unlist(best)[pos])),file=c(output_1,output_2))
+  
+  return(data_gi)
   
 }
 
@@ -408,6 +414,24 @@ save_areas=function(ras,cor,all_name){
 
 shinyServer(function(input, output, session) {
 
+  showModal(modalDialog(title = "Introducción",
+    
+            h1("Optimizador de área predictora en predicción climática", style = "color:#6C6A61", align = "center"), 
+            h4("Usando la herramienta de predicción climática (CPT, por sus siglas en ingles)", style = "color:#59981A", align = "center"), br(),
+            h3("Acerca de esta aplicación", style = "color:#6C6A61", align = "left"),
+            p("El Optimizador de área predictora en predicción climática es una aplicación que permite realizar las predicciones climáticas optimizando el área predictora de la Temperatura Superficial del Mar (TSM) proveniente del modelo CFSv2.Esta aplicación usa la herramienta de predicción climática (CPT, por sus siglas en ingles) en versión batch de Windows para automatizar la realización de las predicciones climáticas.", style = "font-size:18px; color:#747474"),
+          
+            p("El Optimizador de área predictora en predicción climática fue implementado usando", a("Shiny,", href ="http://shiny.rstudio.com/"), "un marco de aplicación web de código abierto desarrollado por", a("RStudio", href ="https://www.rstudio.com/"), "Equipo para crear aplicaciones web interactivas basadas en", a("R Statistical Language", href ="https://www.r-project.org/"),".", style = "color:#747474"),
+            
+            tags$a(href ="https://www.youtube.com/embed/T1-k7VYwsHg", "link del video en youtube"),
+            HTML('<iframe width="560" height="315" src="https://www.youtube.com/embed/T1-k7VYwsHg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'),
+            
+            p("- EL", a("Codigo", href = "https://github.com"), "esta disponible en github.", style = "color:#747474"),
+            
+            easyClose = TRUE,
+            footer = modalButton("Cerrar")
+          ))
+  
   base_map <- function(){
     leaflet("map1",options =leafletOptions(zoomControl = FALSE,minZoom = 2,maxZoom = 2,dragging = FALSE) ) %>%
       
@@ -785,7 +809,7 @@ observeEvent(input$map1_draw_new_feature,{
   
   output$sliderInputUI <- renderUI({
     if (paths$succes1 == TRUE & paths$succes2 == TRUE & paths$succes3 == TRUE) {
-      bsButton("run", label = "Generar predicciones", style = "primary") 
+      bsButton("run", label = "Generar predicciones", style = "warning") 
       
     }
   })
@@ -892,14 +916,55 @@ observeEvent(input$map1_draw_new_feature,{
    incProgress(1/10,message = "seleccionando mejor corrida",detail = paste0(70,"%"))
    
    folder_output <- paste0(paths$main_dir,"/",input$text,"/output/raw_output/",names_x)
-   best_decil=lapply(folder_output,best_GI) %>% lapply(.,unlist)
-   print(best_decil)
+   print(folder_output)
+   best=best_GI(folder_output) 
+   print(class(best))
+   print(dim(best))
+   best_decil=best[2,3] 
+   #print(best_decil)
+   data_g=best[,-3] 
+   print(class(data_g))
+   print(dim(data_g))
+   
+   my_post_theme=
+     theme_bw() +
+     theme(axis.text.x = element_text(face="bold", color="#666666", 
+                                      size=14),
+           axis.title = element_text(color="black", face="bold",size=13),
+           plot.title = element_text(color="black", face="bold", size=14),
+           axis.text.y = element_text(face="bold", color="#666666", 
+                                      size=12))
+   
+     
+   paths$plot <- ggplot(data=data_g, aes(x=text, y=gi))+
+       geom_bar(stat="identity", position="dodge")+
+       labs(y="Goodness Index", x = "")+
+       my_post_theme
+   
+     output$plot1 <- renderPlot({
+       paths$plot
+     })
+   
+   
+   output$downloadPlot <- downloadHandler(
+     filename = function(){paste("input$plot1",'.png',sep='')},
+     content = function(file){
+       ggsave(file,plot=paths$plot)
+     }
+   )
+   
+   
+   
+   
+   
+   
    cat("\n Mejor corrida seleccionada \n")
    
    incProgress(1/10,message = "Guardando metricas del área optimizada",detail = paste0(80,"%"))
    
    best_path <- paste0(paths$main_dir,"/",input$text,"/output/raw_output/",best_decil)
    all_metricas<- metricas(best_path)
+   paths$metrics_opt <- all_metricas %>% mutate(pearson=round(pearson*100,2),roc_b=round(roc_b*100,2),roc_a=round(roc_a*100,2),kendall=round(kendall,2)) %>%dplyr::select(-id,-file)
    o_empty_3= write.csv(all_metricas,paste0(paths$main_dir,"/",input$text,"/output/opt_domain/metrics.csv"),row.names=FALSE)
   
    cat("\n Metricas con dominio optimizado almacenadas \n")
@@ -908,6 +973,7 @@ observeEvent(input$map1_draw_new_feature,{
    
    normal_path <-  paste0(folder_output,"_0")
    all_metricas_n<- metricas(normal_path)
+   paths$metrics_all <- all_metricas_n %>% dplyr::select(-id,-file)
    o_empty_4=write.csv(all_metricas_n,paste0(paths$main_dir,"/",input$text,"/output/all_domain/metrics.csv"),row.names=FALSE)
    
    cat("\n Metricas con todo el dominio almacenadas \n")
@@ -919,6 +985,83 @@ observeEvent(input$map1_draw_new_feature,{
    incProgress(1/10,message = "Proceso finalizado",detail = paste0(100,"%"))
    
    
+  
+     observeEvent(input$select,{
+     
+     qpal <- colorBin(c("blue","deepskyblue","cadetblue1","ghostwhite","burlywood","darkorange","red"),paths$metrics_opt$pearson,bins=c(100,80,60,20,-20,-60,-80,-100) )
+     
+     if(input$select==1){
+       
+       paths$map_metrics <- 
+       leaflet() %>%
+       addProviderTiles("Esri.WorldGrayCanvas") %>%
+       addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(pearson), fillOpacity = 1,popup =paste0("Correlación Pearson: ",paths$metrics_opt$pearson, "<br>")) %>%
+       addLegend(pal = qpal, values = paths$metrics_opt$pearson,title = "Pearson Cor." ,position = "bottomleft")
+       
+       
+       output$metrics <- renderLeaflet({
+         paths$map_metrics
+       }) 
+         
+     }else if(input$select==2){
+       
+       paths$map_metrics <- 
+       leaflet() %>%
+         addProviderTiles("Esri.WorldGrayCanvas") %>%
+         addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(kendall), fillOpacity = 1,popup =paste0("Correlación Kendall: ",paths$metrics_opt$kendall, "<br>")) %>%
+         addLegend(pal = qpal, values = paths$metrics_opt$kendall,title = "Kendall Cor." ,position = "bottomleft")
+      
+       
+       output$metrics <- renderLeaflet({
+         paths$map_metrics
+       }) 
+       
+       
+     }else if(input$select==3){
+       
+       paths$map_metrics <- 
+       leaflet() %>%
+         addProviderTiles("Esri.WorldGrayCanvas") %>%
+         addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(roc_b), fillOpacity = 1,popup =paste0("ROC below: ",paths$metrics_opt$roc_b, "<br>")) %>%
+         addLegend(pal = qpal, values = paths$metrics_opt$roc_b,title = "ROC below" ,position = "bottomleft")
+      
+       
+       output$metrics <- renderLeaflet({
+         paths$map_metrics
+       }) 
+       
+     }else{
+       
+       paths$map_metrics <- 
+         
+       leaflet() %>%
+         addProviderTiles("Esri.WorldGrayCanvas") %>%
+         addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(roc_a), fillOpacity = 1,popup =paste0("ROC above: ",paths$metrics_opt$roc_a, "<br>")) %>%
+         addLegend(pal = qpal, values = paths$metrics_opt$roc_a,title = "ROC above" ,position = "bottomleft")
+       
+       
+       output$metrics <- renderLeaflet({
+         paths$map_metrics
+       })   
+         
+         
+     }
+       
+       
+     })
+     
+     output$downloadPlot1 <- downloadHandler(
+       filename = "metrics.html",
+       content = function(file){
+         
+         
+         saveWidget(
+           widget = paths$map_metrics
+           , file = file
+         )
+       }
+     )
+        
    
    
    
