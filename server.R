@@ -22,6 +22,7 @@ suppressMessages(if(!require(dplyr)){install.packages('dplyr'); library(dplyr)} 
 suppressMessages(if(require(RColorBrewer)==FALSE){install.packages("RColorBrewer")});library("RColorBrewer")
 suppressMessages(if(!require(shinyBS)){install.packages('shinyBS'); library(shinyBS)} else {library(shinyBS)})
 suppressMessages(if(!require(shinydashboard)){install.packages('shinydashboard'); library(shinydashboard)} else {library(shinydashboard)})
+suppressMessages(if(!require(htmlwidgets)){install.packages('htmlwidgets'); library(htmlwidgets)} else {library(htmlwidgets)})
 
 
 
@@ -394,7 +395,7 @@ metricas=function(x){
   return(all_data)
 }
 
-save_areas=function(ras,cor,all_name){
+save_areas=function(ras,cor,all_name,type){
   
   name=basename(all_name) 
   dec=str_split(name,"_")[[1]][3]
@@ -402,13 +403,15 @@ save_areas=function(ras,cor,all_name){
   values(cor_raster)=cor
   q1=quantile(cor,as.numeric(dec),na.rm=T)
   jBrewColors <- brewer.pal(n = 9, name = "Reds")
-  tiff(paste0(all_name,".tiff"),compression = 'lzw',height = 6.5,width = 5.7,units="in", res=150)
-  par(mfrow=c(2,1))
-  plot(cor_raster,main="Weighted loadings",col=jBrewColors,colNA="gray",legend.width=1,legend.shrink=1)
-  plot(cor_raster>= q1,main="Selected pixels",colNA="gray",legend=F,col=jBrewColors)
-  dev.off()
+  #tiff(paste0(all_name,".tiff"),compression = 'lzw',height = 6.5,width = 5.7,units="in", res=150)
   
-  return(print("Área seleccionada guardada en formato Raster"))
+  
+  if(type=="load"){
+  out = plot(cor_raster,main="Weighted loadings",col=jBrewColors,colNA="gray",legend.width=1,legend.shrink=1)
+  }else{
+  out = plot(cor_raster>= q1,main="Selected pixels",colNA="gray",legend=F,col=jBrewColors)
+  }
+  return(out)
   
 }
 
@@ -963,10 +966,16 @@ observeEvent(input$map1_draw_new_feature,{
    incProgress(1/10,message = "Guardando metricas del área optimizada",detail = paste0(80,"%"))
    
    best_path <- paste0(paths$main_dir,"/",input$text,"/output/raw_output/",best_decil)
-   all_metricas<- metricas(best_path)
-   paths$metrics_opt <- all_metricas %>% mutate(pearson=round(pearson*100,2),roc_b=round(roc_b*100,2),roc_a=round(roc_a*100,2),kendall=round(kendall,2)) %>%dplyr::select(-id,-file)
+   all_metricas<- metricas(best_path) %>% mutate(pearson=round(pearson*100,2),roc_b=round(roc_b*100,2),roc_a=round(roc_a*100,2),kendall=round(kendall,2),below=round(as.numeric(as.character(below)),2),normal=round(as.numeric(as.character(normal)),2),above=round(as.numeric(as.character(above)),2)) %>%dplyr::select(-id,-file)
+   paths$metrics_opt <- all_metricas 
+   print(paths$metrics_opt$below)
+   proba <- all_metricas %>% dplyr::select(below,normal,above)
+   
+   paths$max_probs= data.frame(lon=all_metricas$longitud,lat=all_metricas$latitud,value=apply(proba,1,max),lab=colnames(proba)[apply(proba,1,function(x) which.max(x))]) %>% mutate(color=ifelse(lab=="below","#800000",ifelse(lab=="above","#529dba","green")))
+   print(class(paths$metrics_opt$below))
+   #paths$metrics_opt <- all_metricas %>% mutate(pearson=round(pearson*100,2),roc_b=round(roc_b*100,2),roc_a=round(roc_a*100,2),kendall=round(kendall,2)) %>%dplyr::select(-id,-file)
    o_empty_3= write.csv(all_metricas,paste0(paths$main_dir,"/",input$text,"/output/opt_domain/metrics.csv"),row.names=FALSE)
-  
+   
    cat("\n Metricas con dominio optimizado almacenadas \n")
    
    incProgress(1/10,message = "Guardando metricas de toda el área",detail = paste0(90,"%"))
@@ -979,7 +988,34 @@ observeEvent(input$map1_draw_new_feature,{
    cat("\n Metricas con todo el dominio almacenadas \n")
    
    incProgress(1/10,message = "Guardando áreas optimizadas",detail = paste0(95,"%"))
-   o_empty_5 <- save_areas(tsm_raster,cor_tsm,best_path)
+   
+   name=basename(best_path) 
+   dec=str_split(name,"_")[[1]][3]
+   
+   cor_raster=tsm_raster[[1]]
+   values(cor_raster)=cor_tsm
+   q1=quantile(cor_tsm,as.numeric(dec),na.rm=T)
+   jBrewColors <- brewer.pal(n = 9, name = "Reds")
+   
+  
+     plot(cor_raster>= q1,main="Selected pixels",colNA="gray",legend=F,col=jBrewColors)
+     
+  
+   
+   output$plot2 <- renderPlot({
+     plot(cor_raster,main="Weighted loadings",col=jBrewColors,colNA="gray",legend.width=1,legend.shrink=1)
+     
+   })
+   
+   output$downloadPlot4 <- downloadHandler(
+     filename = function(){paste("input$plot2",'.png',sep='')},
+     content = function(file){
+       png(file)
+     }
+   )
+   
+   
+   
    
    cat("\n Pixeles selecionados almacenados en .tiff  \n")
    incProgress(1/10,message = "Proceso finalizado",detail = paste0(100,"%"))
@@ -1063,6 +1099,111 @@ observeEvent(input$map1_draw_new_feature,{
      )
         
    
+      observeEvent(input$select1,{
+
+       qpal <- colorBin(c("#529dba","#a6caf0","#fffbf0","#e0e080","#ffff00","#e0c000","#e0a000","#e06000","#c02000","#800000"),paths$metrics_opt$pearson,bins=c(100,90,80,70,60,50,40,30,20,10,0) )
+      #qpal <- colorBin(c("blue","deepskyblue","cadetblue1","ghostwhite","burlywood","darkorange","red"),paths$metrics_opt$pearson,bins=c(100,80,60,20,-20,-60,-80,-100) )
+        
+
+       if(input$select1==1){
+         
+         qpal <- colorBin(c("#529dba","#a6caf0","#fffbf0","#e0e080","#ffff00","#e0c000","#e0a000","#e06000","#c02000","#800000"),paths$metrics_opt$pearson,bins=c(100,90,80,70,60,50,40,30,20,10,0) )
+         
+         paths$map_probs <-
+           leaflet() %>%
+           addProviderTiles("Esri.WorldGrayCanvas") %>%
+           addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(above), fillOpacity = 1,popup =paste0("Prob. encima lo normal: ",paths$metrics_opt$above, "<br>")) %>%
+           addLegend(pal = qpal, values = paths$metrics_opt$above,title = "Encima Normal" ,position = "bottomleft")
+
+
+         output$probs <- renderLeaflet({
+           paths$map_probs
+         })
+
+       }else if(input$select1==2){
+         
+         qpal <- colorBin(c("#529dba","#a6caf0","#fffbf0","#e0e080","#ffff00","#e0c000","#e0a000","#e06000","#c02000","#800000"),paths$metrics_opt$pearson,bins=c(100,90,80,70,60,50,40,30,20,10,0) )
+
+         paths$map_probs <-
+           leaflet() %>%
+           addProviderTiles("Esri.WorldGrayCanvas") %>%
+           addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(normal), fillOpacity = 1,popup =paste0("Prob. Normal : ",paths$metrics_opt$normal, "<br>")) %>%
+           addLegend(pal = qpal, values = paths$metrics_opt$normal,title = "Normal" ,position = "bottomleft")
+
+
+         output$probs <- renderLeaflet({
+           paths$map_probs
+         })
+
+
+       }else if(input$select1==3){
+         
+         qpal <- colorBin(c("#529dba","#a6caf0","#fffbf0","#e0e080","#ffff00","#e0c000","#e0a000","#e06000","#c02000","#800000"),paths$metrics_opt$pearson,bins=c(100,90,80,70,60,50,40,30,20,10,0) )
+
+         paths$map_probs <-
+           leaflet() %>%
+           addProviderTiles("Esri.WorldGrayCanvas") %>%
+           addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(below), fillOpacity = 1,popup =paste0("Prob. bajo lo normal : ",paths$metrics_opt$below, "<br>")) %>%
+           addLegend(pal = qpal, values = paths$metrics_opt$below,title = "Abajo normal" ,position = "bottomleft")
+
+
+         output$probs <- renderLeaflet({
+           paths$map_probs
+         })
+
+       }else{
+
+         
+         
+         
+         addLegendCustom <- function(map, colors, labels, sizes, opacity = 0.5){
+           colorAdditions <- paste0(colors, "; border-radius: 50%; width:", sizes, "px; height:", sizes, "px")
+           labelAdditions <- paste0("<div style='display: inline-block;height: ", 
+                                    sizes, "px;margin-top: 4px;line-height: ", sizes, "px;'>", 
+                                    labels, "</div>")
+           
+           return(addLegend(map,position = "bottomleft", colors = colorAdditions, 
+                            labels = labelAdditions, opacity = opacity))
+         }
+         
+         paths$map_probs <-
+
+           leaflet() %>%
+           addProviderTiles("Esri.WorldGrayCanvas") %>%
+           addCircleMarkers(data = paths$max_probs, lng = ~lon, radius=8,lat = ~lat, stroke=FALSE, color=~color, fillOpacity = 1,popup =paste0("Probabilidad: ",paths$max_probs$value, "<br>")) %>%
+           addLegendCustom(colors = c("blue", "green", "#800000"), 
+                         labels = c("Arriba normal", "Normal", "Abajo normal"), sizes = c(10, 10, 10))
+         
+         #addLegend(pal = qpal, values = paths$metrics_opt$normal,title = "normal" ,position = "bottomleft")
+
+
+         output$probs <- renderLeaflet({
+           paths$map_probs
+         })
+
+
+       }
+
+
+
+
+     })
+     
+     
+      output$downloadPlot3 <- downloadHandler(
+        filename = "probs.html",
+        content = function(file){
+          
+          
+          saveWidget(
+            widget = paths$map_probs
+            , file = file
+          )
+        }
+      )
+     
+     
+     
    
    
   })

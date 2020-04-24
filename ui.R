@@ -22,6 +22,7 @@ suppressMessages(if(!require(shinyBS)){install.packages('shinyBS'); library(shin
 suppressMessages(if(!require(leaflet)){install.packages('leaflet'); library(leaflet)} else {library(leaflet)})
 suppressMessages(if(!require(leaflet.extras)){install.packages('leaflet.extras'); library(leaflet.extras)} else {library(leaflet.extras)})
 suppressMessages(if(!require(shinyBS)){install.packages('shinyBS'); library(shinyBS)} else {library(shinyBS)})
+suppressMessages(if(!require(htmlwidgets)){install.packages('htmlwidgets'); library(htmlwidgets)} else {library(htmlwidgets)})
 
 
 
@@ -178,7 +179,7 @@ body <- dashboardBody(
                textInput("text", label = h4("Nombre Carpeta trabajo:"), value = "",width = 300),
                tags$hr(),
                textInput("text1", label = h4("Seleccionar carpeta"), value = "NULL"),
-               shinyDirButton("main_dir", "seleccionar ubicación","Buscar" ),
+               shinyDirButton("main_dir", "seleccionar ubicaciÃ³n","Buscar" ),
                tags$hr(),
                
                splitLayout(cellWidths = c("30%","40%"),
@@ -222,8 +223,8 @@ body <- dashboardBody(
                                 
                ), 
                splitLayout(
-                 numericInput("syear","Primer año de descarga",value = 1982,min = 1982, max = as.numeric(format(Sys.Date(), "%Y")),width = 80),
-                 numericInput("lyear","Ultimo año de descarga",value = as.numeric(format(Sys.Date(), "%Y")),min = 1982, max = as.numeric(format(Sys.Date(), "%Y")),width = 80)
+                 numericInput("syear","Primer aÃ±o de descarga",value = 1982,min = 1982, max = as.numeric(format(Sys.Date(), "%Y")),width = 80),
+                 numericInput("lyear","Ultimo aÃ±o de descarga",value = as.numeric(format(Sys.Date(), "%Y")),min = 1982, max = as.numeric(format(Sys.Date(), "%Y")),width = 80)
                ),
                fluidRow(
                  column(width = 4,
@@ -232,7 +233,7 @@ body <- dashboardBody(
                                     selected = "", inline = FALSE)
                         ),
                  column(width = 4,
-                        pickerInput("length", label = h4("Tamaño de la temporada"), 
+                        pickerInput("length", label = h4("TamaÃ±o de la temporada"), 
                                     choices = 1:3, 
                                     selected = "",   inline = FALSE)
                         ),
@@ -244,7 +245,7 @@ body <- dashboardBody(
                  
                  
                ),
-               textInput("text3", label = h4("Selección Actual"), value = "NULL")
+               textInput("text3", label = h4("SelecciÃ³n Actual"), value = "NULL")
               ,withBusyIndicatorUI( 
               bsButton("download", label = "Descargar TSM", style = "warning")
               ),
@@ -259,9 +260,9 @@ body <- dashboardBody(
     column(width = 8,
            navbarPage(title = icon("far fa-cogs"),
                       id = "nvpg1",
-                      tabPanel(title = "Introducción",
+                      tabPanel(title = "IntroducciÃ³n",
                                tags$div(id = "div1", class = "card",
-                                        h3("Introducción"),
+                                        h3("IntroducciÃ³n"),
                                         tags$p("Esta es una aplicacion para procesar ..."),
                                         tags$p("para mas informacion acceder al siguiente link"),
                                         textOutput("status"),
@@ -271,7 +272,7 @@ body <- dashboardBody(
                                         )
                                         
                       ),
-                               tabPanel(title = "Selector de área",
+                               tabPanel(title = "Selector de Ã¡rea",
                                         tags$div(id = "map", class = "card",
                                         #tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
                                            
@@ -285,14 +286,14 @@ body <- dashboardBody(
                                         fluidRow(
                                           column(width = 6,
                                                  box(width = NULL, solidHeader = TRUE,title = "Goodness Index",status = "primary", collapsible = TRUE,
-                                                      downloadButton('downloadPlot','Download Plot'),
+                                                      downloadButton('downloadPlot','Descargar imagen'),
                                                       plotOutput("plot1")
                                                      
                                                      )
                                                 ),
                                           column(width = 6,
-                                                 box(width = NULL, solidHeader = TRUE,title = "Cargar estaciones climatologicas",status = "primary", collapsible = TRUE,
-                                                     downloadButton('downloadPlot1','Download Plot'),
+                                                 box(width = NULL, solidHeader = TRUE,title = "Metricas de habilidad",status = "primary", collapsible = TRUE,
+                                                     downloadButton('downloadPlot1','Descargar imagen'),
                                                      leafletOutput("metrics"),
                                                      absolutePanel(bottom = 350, right =20, width = 200,
                                                                    draggable =FALSE, #,fixed = TRUE,
@@ -301,10 +302,30 @@ body <- dashboardBody(
                                                                                               "Kendall Cor" = 2, "ROC below" = 3,"ROC above" = 4), selected = 1),style = "opacity: 0.82")
                                           
                                                      
-                                                     
-                                                     
                                                      )    
                                                  )
+                                        )
+                                        ,fluidRow(
+                                          column(width = 6,
+                                                 box(width = NULL, solidHeader = TRUE,title = "d Index",status = "primary", collapsible = TRUE,
+                                                     downloadButton('downloadPlot3','Descargar imagen'),
+                                                     leafletOutput("probs"),
+                                                     absolutePanel(bottom = 350, right =20, width = 200,
+                                                                   draggable =FALSE, #,fixed = TRUE,
+                                                                   selectInput("select1", h4(""),
+                                                                               choices = list("Arriba de lo normal" = 1, #"Effective Precipitation" = 2,
+                                                                                              "Normal" = 2, "Abajo de lo Normal" = 3,"Maximas probabilidades" = 4), selected = 1),style = "opacity: 0.82")
+
+                                                 )
+                                          ),
+                                          column(width = 6,
+                                                 box(width = NULL, solidHeader = TRUE,title = "Goodness Index",status = "primary", collapsible = TRUE,
+                                                     downloadButton('downloadPlot4','Descargar imagen'),
+                                                     plotOutput("plot2")
+                                                 )
+                                          )
+
+
                                         )
                                         
                                )
