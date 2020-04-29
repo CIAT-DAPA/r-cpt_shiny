@@ -459,7 +459,7 @@ shinyServer(function(input, output, session) {
     
   paths<- reactiveValues()
   react_map <- reactiveVal(base_map())
-  
+  hideTab(inputId = "nvpg1", target = "Resultados")
   paths$succes1 = "FALSE"
   paths$succes2 = "FALSE"
   paths$succes3 = "FALSE"
@@ -522,7 +522,7 @@ shinyServer(function(input, output, session) {
       
       updateButton(session, "action", label = "Directorios creados", style = "success")
       paths$succes1 = "TRUE"
-        
+      shinyjs::disable("action")  
     }else{
       sendSweetAlert(
         session = session,
@@ -539,7 +539,7 @@ shinyServer(function(input, output, session) {
     
     if (nchar(as.character(input$text))>0 & is.null(paths$main_dir)== FALSE & is.null(input$upload$datapath)== FALSE){
       
-      shiny::withProgress(message = "Application loading", value = 0, {
+      shiny::withProgress(message = "Copiando datos de estaciones meteorológicas", value = 0, {
         
         shiny::incProgress(1/10)
         Sys.sleep(1)
@@ -548,7 +548,10 @@ shinyServer(function(input, output, session) {
         path_copy <- paste0(paths$y_path,"/", input$upload$name)
         file.copy(input$upload$datapath,path_copy, overwrite = TRUE)
         updateButton(session, "copi", label = "Archivo guardado", style = "success")
+        shinyjs::disable("copi")
         paths$succes2 = "TRUE"
+        shiny::incProgress(10/10)
+        
       })
       
       sendSweetAlert(
@@ -583,22 +586,7 @@ shinyServer(function(input, output, session) {
     react_map()
   })
   
-  shinyjs::onclick("Check1",expr = {
-    updateNavbarPage(session, "nvpg1",selected = "Selector de área")
-  })
-    
-  shinyjs::onclick("lon1_1",expr = {
-    updateNavbarPage(session, "nvpg1",selected = "Selector de área")
-  })
-  shinyjs::onclick("lon2_1",expr = {
-    updateNavbarPage(session, "nvpg1",selected = "Selector de área")
-  })
-  shinyjs::onclick("lat1_1",expr = {
-    updateNavbarPage(session, "nvpg1",selected = "Selector de área")
-  })
-  shinyjs::onclick("lat2_1",expr = {
-    updateNavbarPage(session, "nvpg1",selected = "Selector de área")
-  })
+
   
 observeEvent(c(input$Check1,input$lon1_1, input$lon2_1,input$lat1_1, input$lat2_1,input$lon1_2, input$lon2_2,input$lat1_2, input$lat2_2),{
   
@@ -683,13 +671,10 @@ observeEvent(input$map1_draw_new_feature,{
 
   
   
-  shinyjs::onclick("start",expr = {
-    print(list.files(paths$x_path,full.names = T))
-  })
-  
+ 
   observeEvent(input$download,{
     
-    if (nchar(as.character(input$text))>0 & is.null(paths$main_dir)== FALSE){
+    if (nchar(as.character(input$text))>0 & is.null(paths$main_dir)== FALSE & paths$succes1 == "TRUE"){
     
          if(input$Check1=="1"){
            
@@ -700,7 +685,12 @@ observeEvent(input$map1_draw_new_feature,{
                    
                    withBusyIndicatorServer("download",{ 
                      withProgress(message = "Descargando TSM", value = 0, {
+                       shiny::incProgress(1/10)
+                       Sys.sleep(1)
+                       shiny::incProgress(5/10)
+                       
                         download_CFSV2_CPT_1(firs_year=input$syear,last_year=input$lyear,i_month=as.numeric(input$start),ic=as.numeric(input$ic),dir_save=paths$x_path,area1=area,lg=as.numeric(input$length))
+                        shiny::incProgress(10/10)
                      })
                    })  
                    
@@ -713,6 +703,7 @@ observeEvent(input$map1_draw_new_feature,{
                    
                    updateButton(session, "download", label = "TSM descargada", style = "success")
                    paths$succes3 = "TRUE"
+                   shinyjs::disable("download")
                }else{
                  sendSweetAlert(
                    session = session,
@@ -741,7 +732,11 @@ observeEvent(input$map1_draw_new_feature,{
              
                        withBusyIndicatorServer("download",{ 
                          withProgress(message = "Descargando TSM", value = 0, {
+                           shiny::incProgress(1/10)
+                           Sys.sleep(1)
+                           shiny::incProgress(5/10)
                            download_CFSV2_CPT_2(firs_year=input$syear,last_year=input$lyear,i_month=as.numeric(input$start),ic=as.numeric(input$ic),dir_save=paths$x_path,area1=area,lg=as.numeric(input$length),area2 = area1)
+                           shiny::incProgress(10/10)
                          })
                        })  
                     
@@ -759,7 +754,7 @@ observeEvent(input$map1_draw_new_feature,{
                     sendSweetAlert(
                       session = session,
                       title = "Error !!",
-                      text = "Areas mal definidas, las areas no se deben sobreponer",
+                      text = "Áreas mal definidas, las áreas no se deben sobreponer",
                       type = "error"
                     )
                     
@@ -784,7 +779,7 @@ observeEvent(input$map1_draw_new_feature,{
       sendSweetAlert(
         session = session,
         title = "Error !!",
-        text = "Por favor escriba un nombre de carpeta y/o seleccione una ubicación",
+        text = "Por favor escriba un nombre de carpeta y/o seleccione una ubicación y/o presione el botton(crear directorios)",
         type = "error"
       )
       
@@ -941,7 +936,10 @@ observeEvent(input$map1_draw_new_feature,{
      
    paths$plot <- ggplot(data=data_g, aes(x=text, y=gi))+
        geom_bar(stat="identity", position="dodge")+
+        geom_text(aes(label=gi),  vjust=1.6, color="white", size=5)+
        labs(y="Goodness Index", x = "")+
+        scale_x_discrete(breaks=c("area completa","area_optimizada"),
+                      labels=c("Dominio completo", "Dominio optimizado"))+
        my_post_theme
    
      output$plot1 <- renderPlot({
@@ -950,7 +948,7 @@ observeEvent(input$map1_draw_new_feature,{
    
    
    output$downloadPlot <- downloadHandler(
-     filename = function(){paste("input$plot1",'.png',sep='')},
+     filename = function(){paste("hist",'.png',sep='')},
      content = function(file){
        ggsave(file,plot=paths$plot)
      }
@@ -998,21 +996,63 @@ observeEvent(input$map1_draw_new_feature,{
    jBrewColors <- brewer.pal(n = 9, name = "Reds")
    
   
-     plot(cor_raster>= q1,main="Selected pixels",colNA="gray",legend=F,col=jBrewColors)
-     
+miplot1 <- function(){
+  plot(cor_raster>= q1,main="Selected pixels",colNA="gray",legend=F,col=jBrewColors)
+}
+
+miplot2 <- function(){
+  plot(cor_raster,main="Weighted loadings",col=jBrewColors,colNA="gray",legend.width=1,legend.shrink=1)
+}   
+   
+   
+observeEvent(input$select2,{
   
+  if(input$select2==1){
+    
+    output$plot2 <- renderPlot({
+     miplot1()
+    })
+    
+    output$downloadPlot4 <- downloadHandler(
+      filename = function(){paste("pixel_select",'.png',sep='')},
+      content = function(file){
+        png(file)
+        miplot1()
+        dev.off()
+        
+      }
+    )
+    
+  }else{
+    
+    
+    output$plot2 <- renderPlot({
+      miplot2()
+    })
+    
+    output$downloadPlot4 <- downloadHandler(
+      filename = function(){paste("loadings",'.png',sep='')},
+      content = function(file){
+        png(file)
+        miplot2()
+        dev.off()
+        
+      }
+    )
+    
+    
+    
+    
+  }
+  
+  
+})
+        
+  
+  
+
    
-   output$plot2 <- renderPlot({
-     plot(cor_raster,main="Weighted loadings",col=jBrewColors,colNA="gray",legend.width=1,legend.shrink=1)
-     
-   })
    
-   output$downloadPlot4 <- downloadHandler(
-     filename = function(){paste("input$plot2",'.png',sep='')},
-     content = function(file){
-       png(file)
-     }
-   )
    
    
    
@@ -1032,7 +1072,7 @@ observeEvent(input$map1_draw_new_feature,{
        leaflet() %>%
        addProviderTiles("Esri.WorldGrayCanvas") %>%
        addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(pearson), fillOpacity = 1,popup =paste0("Correlación Pearson: ",paths$metrics_opt$pearson, "<br>")) %>%
-       addLegend(pal = qpal, values = paths$metrics_opt$pearson,title = "Pearson Cor." ,position = "bottomleft")
+       addLegend(pal = qpal, opacity = 1,values = paths$metrics_opt$pearson,title = "Pearson Cor." ,position = "bottomleft")
        
        
        output$metrics <- renderLeaflet({
@@ -1045,7 +1085,7 @@ observeEvent(input$map1_draw_new_feature,{
        leaflet() %>%
          addProviderTiles("Esri.WorldGrayCanvas") %>%
          addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(kendall), fillOpacity = 1,popup =paste0("Correlación Kendall: ",paths$metrics_opt$kendall, "<br>")) %>%
-         addLegend(pal = qpal, values = paths$metrics_opt$kendall,title = "Kendall Cor." ,position = "bottomleft")
+         addLegend(pal = qpal,opacity = 1, values = paths$metrics_opt$kendall,title = "Kendall Cor." ,position = "bottomleft")
       
        
        output$metrics <- renderLeaflet({
@@ -1059,7 +1099,7 @@ observeEvent(input$map1_draw_new_feature,{
        leaflet() %>%
          addProviderTiles("Esri.WorldGrayCanvas") %>%
          addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(roc_b), fillOpacity = 1,popup =paste0("ROC below: ",paths$metrics_opt$roc_b, "<br>")) %>%
-         addLegend(pal = qpal, values = paths$metrics_opt$roc_b,title = "ROC below" ,position = "bottomleft")
+         addLegend(pal = qpal,opacity = 1, values = paths$metrics_opt$roc_b,title = "ROC below" ,position = "bottomleft")
       
        
        output$metrics <- renderLeaflet({
@@ -1073,7 +1113,7 @@ observeEvent(input$map1_draw_new_feature,{
        leaflet() %>%
          addProviderTiles("Esri.WorldGrayCanvas") %>%
          addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(roc_a), fillOpacity = 1,popup =paste0("ROC above: ",paths$metrics_opt$roc_a, "<br>")) %>%
-         addLegend(pal = qpal, values = paths$metrics_opt$roc_a,title = "ROC above" ,position = "bottomleft")
+         addLegend(pal = qpal,opacity = 1, values = paths$metrics_opt$roc_a,title = "ROC above" ,position = "bottomleft")
        
        
        output$metrics <- renderLeaflet({
@@ -1113,7 +1153,7 @@ observeEvent(input$map1_draw_new_feature,{
            leaflet() %>%
            addProviderTiles("Esri.WorldGrayCanvas") %>%
            addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(above), fillOpacity = 1,popup =paste0("Prob. encima lo normal: ",paths$metrics_opt$above, "<br>")) %>%
-           addLegend(pal = qpal, values = paths$metrics_opt$above,title = "Encima Normal" ,position = "bottomleft")
+           addLegend(pal = qpal, values = paths$metrics_opt$above,opacity = 1,title = "Encima Normal" ,position = "bottomleft")
 
 
          output$probs <- renderLeaflet({
@@ -1128,7 +1168,7 @@ observeEvent(input$map1_draw_new_feature,{
            leaflet() %>%
            addProviderTiles("Esri.WorldGrayCanvas") %>%
            addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(normal), fillOpacity = 1,popup =paste0("Prob. Normal : ",paths$metrics_opt$normal, "<br>")) %>%
-           addLegend(pal = qpal, values = paths$metrics_opt$normal,title = "Normal" ,position = "bottomleft")
+           addLegend(pal = qpal, values = paths$metrics_opt$normal,opacity = 1,title = "Normal" ,position = "bottomleft")
 
 
          output$probs <- renderLeaflet({
@@ -1144,7 +1184,7 @@ observeEvent(input$map1_draw_new_feature,{
            leaflet() %>%
            addProviderTiles("Esri.WorldGrayCanvas") %>%
            addCircleMarkers(data = paths$metrics_opt, lng = ~longitud, radius=8,lat = ~latitud, stroke=FALSE, color=~qpal(below), fillOpacity = 1,popup =paste0("Prob. bajo lo normal : ",paths$metrics_opt$below, "<br>")) %>%
-           addLegend(pal = qpal, values = paths$metrics_opt$below,title = "Abajo normal" ,position = "bottomleft")
+           addLegend(pal = qpal, values = paths$metrics_opt$below,opacity = 1,title = "Abajo normal" ,position = "bottomleft")
 
 
          output$probs <- renderLeaflet({
@@ -1171,8 +1211,8 @@ observeEvent(input$map1_draw_new_feature,{
            leaflet() %>%
            addProviderTiles("Esri.WorldGrayCanvas") %>%
            addCircleMarkers(data = paths$max_probs, lng = ~lon, radius=8,lat = ~lat, stroke=FALSE, color=~color, fillOpacity = 1,popup =paste0("Probabilidad: ",paths$max_probs$value, "<br>")) %>%
-           addLegendCustom(colors = c("blue", "green", "#800000"), 
-                         labels = c("Arriba normal", "Normal", "Abajo normal"), sizes = c(10, 10, 10))
+           addLegendCustom(colors = c("#529dba", "green", "#800000"), 
+                         labels = c("Arriba normal", "Normal", "Abajo normal"), sizes = c(10, 10, 10),opacity = 1)
          
          #addLegend(pal = qpal, values = paths$metrics_opt$normal,title = "normal" ,position = "bottomleft")
 
@@ -1199,15 +1239,18 @@ observeEvent(input$map1_draw_new_feature,{
             widget = paths$map_probs
             , file = file
           )
+          
+          
+          
         }
       )
      
      
-     
-   
-   
+      showTab(inputId = "nvpg1", target = "Resultados")
+         
   })
-  
+    updateButton(session, "run", label = "Corrida realizada", style = "success")
+    shinyjs::disable("run")
   })
   
   

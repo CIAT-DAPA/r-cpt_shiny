@@ -111,7 +111,7 @@ withBusyIndicatorUI <- function(button) {
 # Define UI for application that draws a histogram
 
 header <- dashboardHeader(
-  title =   "CPT",
+  title =  h4(HTML("Optimizador de área predictora<br/> en predicción climática")),
   titleWidth = 300
 )
 
@@ -175,11 +175,11 @@ body <- dashboardBody(
 
                    ')),
         column(width = 4,
-           box(width = NULL, solidHeader = TRUE,status = "primary", title = "Crear directorio raiz",
-               textInput("text", label = h4("Nombre Carpeta trabajo:"), value = "",width = 300),
+           box(width = NULL, solidHeader = TRUE,status = "primary", title = "Construcción de directorio raiz",
+               textInput("text", label = h4("Nombre de la Carpeta de trabajo:"), value = "",width = 300),
                tags$hr(),
                textInput("text1", label = h4("Seleccionar carpeta"), value = "NULL"),
-               shinyDirButton("main_dir", "seleccionar ubicaciÃ³n","Buscar" ),
+               shinyDirButton("main_dir", "seleccionar ubicación","Buscar" ),
                tags$hr(),
                
                splitLayout(cellWidths = c("30%","40%"),
@@ -197,10 +197,10 @@ body <- dashboardBody(
                )
                
             ),
-           box(width = NULL, title = "Descarga predictres TSM" ,solidHeader = TRUE,status = "primary", collapsible = TRUE,
+           box(width = NULL, title = "Descarga de predictores TSM(CFSv2)" ,solidHeader = TRUE,status = "primary", collapsible = TRUE,
                
                radioButtons(inputId="Check1", label=h4 ("Cantidad de areas predictoras"),
-                            choices=c("1 area predictoras" = 1,"2 areas predictoras" = 2),
+                            choices=c("1 área predictora" = 1,"2 áreas predictoras" = 2),
                             selected = 1),
                
                splitLayout(cellWidths = c("17%","17%", "17%" , "17%" , "32%"),
@@ -223,8 +223,8 @@ body <- dashboardBody(
                                 
                ), 
                splitLayout(
-                 numericInput("syear","Primer aÃ±o de descarga",value = 1982,min = 1982, max = as.numeric(format(Sys.Date(), "%Y")),width = 80),
-                 numericInput("lyear","Ultimo aÃ±o de descarga",value = as.numeric(format(Sys.Date(), "%Y")),min = 1982, max = as.numeric(format(Sys.Date(), "%Y")),width = 80)
+                 numericInput("syear","Primer año de descarga",value = 1982,min = 1982, max = as.numeric(format(Sys.Date(), "%Y")),width = 80),
+                 numericInput("lyear","Ultimo año de descarga",value = as.numeric(format(Sys.Date(), "%Y")),min = 1982, max = as.numeric(format(Sys.Date(), "%Y")),width = 80)
                ),
                fluidRow(
                  column(width = 4,
@@ -233,7 +233,7 @@ body <- dashboardBody(
                                     selected = "", inline = FALSE)
                         ),
                  column(width = 4,
-                        pickerInput("length", label = h4("TamaÃ±o de la temporada"), 
+                        pickerInput("length", label = h4("Tamaño de la temporada"), 
                                     choices = 1:3, 
                                     selected = "",   inline = FALSE)
                         ),
@@ -245,14 +245,14 @@ body <- dashboardBody(
                  
                  
                ),
-               textInput("text3", label = h4("SelecciÃ³n Actual"), value = "NULL")
+               textInput("text3", label = h4("Selección Actual"), value = "NULL")
               ,withBusyIndicatorUI( 
               bsButton("download", label = "Descargar TSM", style = "warning")
               ),
               bsTooltip(id = "download", title = "Descarga datos de TSM del modelo CFSv2", placement = "rigth", trigger = "hover")
            ),
-           box(width = NULL, solidHeader = TRUE,title = "Cargar estaciones climatologicas",status = "primary", collapsible = TRUE,
-               fileInput("upload", "Upload", multiple = FALSE),
+           box(width = NULL, solidHeader = TRUE,title = "Carga de estaciones climatológicas",status = "primary", collapsible = TRUE,
+               fileInput("upload", "Cargar archivo", multiple = FALSE),
                bsButton("copi", label = "Copiar archivo",style="warning"),
                bsTooltip(id = "copi", title = "Copia los datos de estaciones metereologicas", placement = "rigth", trigger = "hover")
            )
@@ -260,19 +260,7 @@ body <- dashboardBody(
     column(width = 8,
            navbarPage(title = icon("far fa-cogs"),
                       id = "nvpg1",
-                      tabPanel(title = "IntroducciÃ³n",
-                               tags$div(id = "div1", class = "card",
-                                        h3("IntroducciÃ³n"),
-                                        tags$p("Esta es una aplicacion para procesar ..."),
-                                        tags$p("para mas informacion acceder al siguiente link"),
-                                        textOutput("status"),
-                                        tags$a(href ="https://www.youtube.com/embed/T1-k7VYwsHg", "link video"),
-                                        HTML('<iframe width="560" height="315" src="https://www.youtube.com/embed/T1-k7VYwsHg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>')
-                                      
-                                        )
-                                        
-                      ),
-                               tabPanel(title = "Selector de Ã¡rea",
+                      tabPanel(title = "Selector de área predictora",
                                         tags$div(id = "map", class = "card",
                                         #tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
                                            
@@ -285,44 +273,62 @@ body <- dashboardBody(
                                
                                         fluidRow(
                                           column(width = 6,
-                                                 box(width = NULL, solidHeader = TRUE,title = "Goodness Index",status = "primary", collapsible = TRUE,
+                                                 box(width = NULL, solidHeader = TRUE,title = "Índice de bondad",status = "primary", collapsible = TRUE,
                                                       downloadButton('downloadPlot','Descargar imagen'),
+                                                      br(), 
                                                       plotOutput("plot1")
                                                      
                                                      )
                                                 ),
                                           column(width = 6,
-                                                 box(width = NULL, solidHeader = TRUE,title = "Metricas de habilidad",status = "primary", collapsible = TRUE,
-                                                     downloadButton('downloadPlot1','Descargar imagen'),
-                                                     leafletOutput("metrics"),
-                                                     absolutePanel(bottom = 350, right =20, width = 200,
-                                                                   draggable =FALSE, #,fixed = TRUE,
-                                                                   selectInput("select", h4(""),
-                                                                               choices = list("Pearson Cor." = 1, #"Effective Precipitation" = 2,
-                                                                                              "Kendall Cor" = 2, "ROC below" = 3,"ROC above" = 4), selected = 1),style = "opacity: 0.82")
-                                          
-                                                     
-                                                     )    
-                                                 )
-                                        )
-                                        ,fluidRow(
-                                          column(width = 6,
-                                                 box(width = NULL, solidHeader = TRUE,title = "d Index",status = "primary", collapsible = TRUE,
+                                                 box(width = NULL, solidHeader = TRUE,title = "Mapas probabilísticos",status = "primary", collapsible = TRUE,
                                                      downloadButton('downloadPlot3','Descargar imagen'),
+                                                     br(),
                                                      leafletOutput("probs"),
                                                      absolutePanel(bottom = 350, right =20, width = 200,
                                                                    draggable =FALSE, #,fixed = TRUE,
                                                                    selectInput("select1", h4(""),
                                                                                choices = list("Arriba de lo normal" = 1, #"Effective Precipitation" = 2,
-                                                                                              "Normal" = 2, "Abajo de lo Normal" = 3,"Maximas probabilidades" = 4), selected = 1),style = "opacity: 0.82")
-
+                                                                                              "Normal" = 2, "Abajo de lo Normal" = 3,"Maximas probabilidades" = 4), selected = 1),style = "opacity: 1")
+                                                     
                                                  )
+                                                 
+                                                 
+                                                 
+                                                 )
+                                        )
+                                        ,fluidRow(
+                                          column(width = 6,
+                                                 box(width = NULL, solidHeader = TRUE,title = "Área seleccionada",status = "primary", collapsible = TRUE,
+                                                     downloadButton('downloadPlot4','Descargar imagen'),
+                                                     br(),
+                                                     plotOutput("plot2"),
+                                                     absolutePanel(bottom = 350, right =20, width = 200,
+                                                                   draggable =FALSE, #,fixed = TRUE,
+                                                                   selectInput("select2", h4(""),
+                                                                               choices = list("Área seleccionada" = 1, #"Effective Precipitation" = 2,
+                                                                                              "Cargas ponderadas" = 2), selected = 1),style = "opacity: 1")
+                                                     
+                                                 )
+                                                 
+                                                 
+
                                           ),
                                           column(width = 6,
-                                                 box(width = NULL, solidHeader = TRUE,title = "Goodness Index",status = "primary", collapsible = TRUE,
-                                                     downloadButton('downloadPlot4','Descargar imagen'),
-                                                     plotOutput("plot2")
-                                                 )
+                                                 box(width = NULL, solidHeader = TRUE,title = "Métricas de habilidad",status = "primary", collapsible = TRUE,
+                                                     downloadButton('downloadPlot1','Descargar imagen'),
+                                                     br(),
+                                                     leafletOutput("metrics"),
+                                                     absolutePanel(bottom = 350, right =20, width = 200,
+                                                                   draggable =FALSE, #,fixed = TRUE,
+                                                                   selectInput("select", h4(""),
+                                                                               choices = list("Correlación de pearson" = 1, #"Effective Precipitation" = 2,
+                                                                                              "Correlación de kendall" = 2, "ROC Abajo de lo normal" = 3,"ROC Arriba de lo normal" = 4), selected = 1),style = "opacity: 1")
+                                                     
+                                                     
+                                                 )         
+                                                 
+                                                 
                                           )
 
 
